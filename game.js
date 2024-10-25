@@ -7,7 +7,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Game properties
-let gameSpeed = 1;
+let gameSpeed = 1.5; // Increased from 1 to 1.5 for a slightly faster starting speed
 let score = 0;
 const levelLength = 1000; // Number of candlesticks to complete the level
 let gameOver = false;
@@ -22,7 +22,8 @@ const player = {
     velocityY: 0,
     isJumping: false,
     jumpCount: 0,
-    maxJumps: 2 // Reduced from 4 to 2 for better control
+    maxJumps: 3, // Increased from 2 to 3 for triple jump
+    color: 'blue' // Add a color property for visual feedback
 };
 
 // Candlestick properties
@@ -37,10 +38,10 @@ const candleHeightScale = 5;
 // Add a new property for the starting platform
 const startingPlatform = {
     x: 0,
-    y: canvas.height / 2 + 50, // Adjust this value to position the platform vertically
-    width: 0, // This will be set dynamically
+    y: canvas.height / 2 + 50,
+    width: 0,
     height: 20,
-    timer: 20000 // 20 seconds in milliseconds
+    timer: 10000 // 10 seconds in milliseconds
 };
 
 // Add camera properties
@@ -110,7 +111,7 @@ function gameLoop() {
     ctx.setTransform(1, 0, 0, 1, 0, -camera.y); // Apply camera transformation
 
     // Update starting platform timer
-    startingPlatform.timer -= 16; // Assuming 60 FPS (1000ms / 60 ≈ 16ms)
+    startingPlatform.timer -= 16; // Assuming 60 FPS (1000ms / 60  16ms)
 
     // Draw background and update candlesticks
     drawBackgroundAndUpdateCandlesticks();
@@ -118,15 +119,15 @@ function gameLoop() {
     // Update player position
     updatePlayer();
 
-    // Draw player
-    ctx.fillStyle = 'blue';
+    // Draw player with current color
+    ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
     // Draw score and progress
     drawScoreAndProgress();
 
-    // Increase game speed
-    gameSpeed = 1 + (score / levelLength) * 2;
+    // Increase game speed (adjusted for the new starting speed)
+    gameSpeed = 1.5 + (score / levelLength) * 2;
 
     // Check for level completion
     if (score >= levelLength) {
@@ -178,12 +179,13 @@ function drawBackgroundAndUpdateCandlesticks() {
         
         ctx.fillRect(startingPlatform.x, startingPlatform.y - camera.y, startingPlatform.width, startingPlatform.height);
 
-        // Draw countdown timer on the platform
+        // Draw large countdown timer in the center of the screen
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 20px Arial';
+        ctx.font = 'bold 100px Arial';
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         const secondsLeft = Math.ceil(startingPlatform.timer / 1000);
-        ctx.fillText(`${secondsLeft}`, startingPlatform.width / 2, startingPlatform.y - camera.y + 15);
+        ctx.fillText(`${secondsLeft}`, canvas.width / 2, canvas.height / 2);
     }
 
     // Draw connecting line
@@ -275,6 +277,12 @@ function updatePlayer() {
     if (player.y > canvas.height) {
         gameOver = true;
     }
+
+    // Reset jump count when landing
+    if (player.isJumping && player.velocityY === 0) {
+        player.isJumping = false;
+        player.jumpCount = 0;
+    }
 }
 
 // Handle jump
@@ -284,9 +292,11 @@ function jump() {
         player.isJumping = true;
         player.jumpCount++;
         
-        // Adjust jump force for the second jump
+        // Adjust jump force for each jump
         if (player.jumpCount === 2) {
-            player.velocityY = -player.jumpForce * 0.8; // Slightly weaker second jump
+            player.velocityY = -player.jumpForce * 0.9; // Slightly weaker second jump
+        } else if (player.jumpCount === 3) {
+            player.velocityY = -player.jumpForce * 0.8; // Even weaker third jump
         }
     }
 }
@@ -313,7 +323,7 @@ function drawGameOver(victory = false) {
 
 // Restart game
 function restartGame() {
-    gameSpeed = 1;
+    gameSpeed = 1.5; // Reset to the new starting speed
     score = 0;
     gameOver = false;
     player.x = canvas.width / 2 - player.width / 2; // Reset to center horizontally
@@ -321,10 +331,11 @@ function restartGame() {
     player.velocityY = 0;
     player.isJumping = false;
     player.jumpCount = 0;
-    startingPlatform.timer = 20000; // Reset the starting platform timer to 20 seconds
+    startingPlatform.timer = 10000; // Reset the starting platform timer to 10 seconds
     startingPlatform.width = 0; // Reset the starting platform width
     candlesticks.length = 0;
     generateCandlesticks();
+    player.color = 'blue';
     gameLoop();
 }
 
@@ -405,7 +416,7 @@ function draw() {
     // ...
 
     // Draw player
-    ctx.fillStyle = 'blue';
+    ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
     // Draw other game elements
