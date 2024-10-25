@@ -40,8 +40,7 @@ const startingPlatform = {
     x: 0,
     y: canvas.height / 2 + 50,
     width: 0,
-    height: 20,
-    timer: 10000 // 10 seconds in milliseconds
+    height: 20
 };
 
 // Add camera properties
@@ -59,6 +58,134 @@ const maxHeightVariation = 200; // Increased from 100
 // Add this new variable to control how quickly the candle heights increase
 const heightProgressionRate = 0.3; // Changed from 0.5 to 0.3
 
+// Add these constants near the top of your file
+const outlierChance = 0.05; // 5% chance for an outlier candle
+const outlierMultiplier = 5; // Outlier candles are 5x larger
+
+// At the beginning of the file, add:
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Update the canvas size setting
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (isMobile) {
+        // Adjust game elements for mobile
+        player.width = Math.floor(canvas.width * 0.1);
+        player.height = Math.floor(canvas.width * 0.1);
+        candlestickWidth = Math.floor(canvas.width * 0.08);
+    }
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Update touch controls
+canvas.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    if (gameOver) {
+        restartGame();
+    } else {
+        jump();
+    }
+}, { passive: false });
+
+// Optimize the gameLoop function
+let lastTime = 0;
+const targetFPS = 60;
+const frameInterval = 1000 / targetFPS;
+
+function gameLoop(currentTime) {
+    if (gameOver) {
+        drawGameOver();
+        return;
+    }
+
+    const deltaTime = currentTime - lastTime;
+
+    if (deltaTime > frameInterval) {
+        lastTime = currentTime - (deltaTime % frameInterval);
+
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Update game state
+        updateCamera();
+        updatePlayer();
+        updateCandlesticks();
+
+        // Draw game elements
+        drawBackground();
+        drawCandlesticks();
+        drawPlayer();
+        drawScoreAndProgress();
+
+        // Increase game speed
+        gameSpeed = 1.5 + (score / levelLength) * 2;
+
+        // Check for level completion
+        if (score >= levelLength) {
+            gameOver = true;
+            drawGameOver(true);
+            return;
+        }
+    }
+
+    // Request next frame
+    requestAnimationFrame(gameLoop);
+}
+
+// Split updateCandlesticks from drawCandlesticks for better performance
+function updateCandlesticks() {
+    for (let i = candlesticks.length - 1; i >= 0; i--) {
+        const candle = candlesticks[i];
+        candle.x -= gameSpeed;
+
+        if (candle.x + candlestickWidth < 0) {
+            candlesticks.splice(i, 1);
+            score++;
+        }
+    }
+
+    if (candlesticks.length < maxCandlesticks) {
+        generateCandlesticks();
+    }
+}
+
+function drawCandlesticks() {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+
+    for (const candle of candlesticks) {
+        const isGreen = candle.close > candle.open;
+        ctx.fillStyle = candle.isOutlier ? (isGreen ? '#00FF00' : '#FF0000') : (isGreen ? '#4CAF50' : '#F44336');
+        ctx.fillRect(candle.x, Math.min(candle.open, candle.close) - camera.y, candlestickWidth, Math.abs(candle.close - candle.open));
+        ctx.fillRect(candle.x + candlestickWidth / 2 - 2, candle.low - camera.y, 4, candle.high - candle.low);
+
+        ctx.moveTo(candle.x + candlestickWidth / 2, candle.close - camera.y);
+        ctx.lineTo(candle.x + candlestickWidth / 2, candle.open - camera.y);
+    }
+
+    ctx.stroke();
+}
+
+// Simplify the drawBackground function
+function drawBackground() {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, camera.y, canvas.width, camera.height);
+
+    // Draw starting platform
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(startingPlatform.x, startingPlatform.y - camera.y, startingPlatform.width, startingPlatform.height);
+}
+
+// Update the player drawing function
+function drawPlayer() {
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+}
+
 // Update the generateCandlesticks function
 function generateCandlesticks() {
     const lastCandle = candlesticks[candlesticks.length - 1];
@@ -72,9 +199,31 @@ function generateCandlesticks() {
 
         const lastClose = lastCandle ? lastCandle.close : canvas.height / 2;
         const open = lastClose;
-        const close = open + (Math.random() - 0.5) * currentHeightVariation * 2;
-        const high = Math.max(open, close) + Math.random() * currentHeightVariation;
-        const low = Math.min(open, close) - Math.random() * currentHeightVariation;
+        let close, high, low;
+
+        // Determine if this candle should be an outlier
+        const isOutlier = Math.random() < outlierChance;
+
+        if (isOutlier) {
+            // Create an outlier candle
+            const direction = Math.random() < 0.5 ? 1 : -1; // Randomly choose up or down
+            const outlierHeight = currentHeightVariation * outlierMultiplier;
+            close = open + direction * outlierHeight;
+            if (direction > 0) {
+                // Spiking up
+                high = close;
+                low = open;
+            } else {
+                // Falling down
+                high = open;
+                low = close;
+            }
+        } else {
+            // Normal candle generation
+            close = open + (Math.random() - 0.5) * currentHeightVariation * 2;
+            high = Math.max(open, close) + Math.random() * currentHeightVariation;
+            low = Math.min(open, close) - Math.random() * currentHeightVariation;
+        }
         
         const candleX = startX + (candlesticks.length - (lastCandle ? candlesticks.length - 1 : 0)) * (candlestickWidth + candlestickGap);
         
@@ -87,8 +236,9 @@ function generateCandlesticks() {
             x: candleX,
             open: open,
             close: close,
-            high: Math.min(high, open + currentMaxHeight / 2),
-            low: Math.max(low, open - currentMaxHeight / 2)
+            high: Math.min(high, canvas.height),
+            low: Math.max(low, 0),
+            isOutlier: isOutlier
         });
     }
 }
@@ -110,9 +260,6 @@ function gameLoop() {
     updateCamera();
     ctx.setTransform(1, 0, 0, 1, 0, -camera.y); // Apply camera transformation
 
-    // Update starting platform timer
-    startingPlatform.timer -= 16; // Assuming 60 FPS (1000ms / 60  16ms)
-
     // Draw background and update candlesticks
     drawBackgroundAndUpdateCandlesticks();
 
@@ -126,7 +273,7 @@ function gameLoop() {
     // Draw score and progress
     drawScoreAndProgress();
 
-    // Increase game speed (adjusted for the new starting speed)
+    // Increase game speed
     gameSpeed = 1.5 + (score / levelLength) * 2;
 
     // Check for level completion
@@ -165,28 +312,20 @@ function drawBackgroundAndUpdateCandlesticks() {
     ctx.fillStyle = '#1a1a1a'; // Dark background
     ctx.fillRect(0, camera.y, canvas.width, camera.height);
 
-    // Draw starting platform if the timer hasn't expired
-    if (startingPlatform.timer > 0) {
-        ctx.fillStyle = 'blue';
-        
-        // Find the first candle that intersects with the platform
-        const firstIntersectingCandle = candlesticks.find(candle => candle.x <= startingPlatform.width);
-        
-        if (firstIntersectingCandle) {
-            // If there's an intersecting candle, adjust the platform width
-            startingPlatform.width = firstIntersectingCandle.x;
-        }
-        
-        ctx.fillRect(startingPlatform.x, startingPlatform.y - camera.y, startingPlatform.width, startingPlatform.height);
-
-        // Draw large countdown timer in the center of the screen
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 100px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const secondsLeft = Math.ceil(startingPlatform.timer / 1000);
-        ctx.fillText(`${secondsLeft}`, canvas.width / 2, canvas.height / 2);
+    // Draw starting platform (always draw it, no timer check)
+    ctx.fillStyle = 'blue';
+    
+    // Find the first candle that intersects with the platform
+    const firstIntersectingCandle = candlesticks.find(candle => candle.x <= startingPlatform.width);
+    
+    if (firstIntersectingCandle) {
+        // If there's an intersecting candle, adjust the platform width
+        startingPlatform.width = firstIntersectingCandle.x;
     }
+    
+    ctx.fillRect(startingPlatform.x, startingPlatform.y - camera.y, startingPlatform.width, startingPlatform.height);
+
+    // Remove the countdown timer drawing code
 
     // Draw connecting line
     ctx.beginPath();
@@ -207,7 +346,7 @@ function drawBackgroundAndUpdateCandlesticks() {
 
         // Draw candlestick
         const isGreen = candle.close > candle.open;
-        ctx.fillStyle = isGreen ? '#4CAF50' : '#F44336';
+        ctx.fillStyle = candle.isOutlier ? (isGreen ? '#00FF00' : '#FF0000') : (isGreen ? '#4CAF50' : '#F44336');
         ctx.fillRect(candle.x, Math.min(candle.open, candle.close) - camera.y, candlestickWidth, Math.abs(candle.close - candle.open));
         ctx.fillRect(candle.x + candlestickWidth / 2 - 2, candle.low - camera.y, 4, candle.high - candle.low);
 
@@ -239,19 +378,17 @@ function updatePlayer() {
         player.velocityY = maxFallSpeed;
     }
 
-    // Check for collision with starting platform only if the timer hasn't expired
-    if (startingPlatform.timer > 0) {
-        if (
-            player.x + player.width > startingPlatform.x &&
-            player.x < startingPlatform.x + startingPlatform.width &&
-            player.y + player.height > startingPlatform.y &&
-            player.y + player.height < startingPlatform.y + startingPlatform.height
-        ) {
-            player.y = startingPlatform.y - player.height;
-            player.velocityY = 0;
-            player.isJumping = false;
-            player.jumpCount = 0;
-        }
+    // Check for collision with starting platform (always check, no timer condition)
+    if (
+        player.x + player.width > startingPlatform.x &&
+        player.x < startingPlatform.x + startingPlatform.width &&
+        player.y + player.height > startingPlatform.y &&
+        player.y + player.height < startingPlatform.y + startingPlatform.height
+    ) {
+        player.y = startingPlatform.y - player.height;
+        player.velocityY = 0;
+        player.isJumping = false;
+        player.jumpCount = 0;
     }
 
     // Check for collisions with candlesticks (platforms)
@@ -323,15 +460,14 @@ function drawGameOver(victory = false) {
 
 // Restart game
 function restartGame() {
-    gameSpeed = 1.5; // Reset to the new starting speed
+    gameSpeed = 1.5;
     score = 0;
     gameOver = false;
-    player.x = canvas.width / 2 - player.width / 2; // Reset to center horizontally
-    player.y = canvas.height / 2; // Reset to middle of the screen vertically
+    player.x = canvas.width / 2 - player.width / 2;
+    player.y = canvas.height / 2;
     player.velocityY = 0;
     player.isJumping = false;
     player.jumpCount = 0;
-    startingPlatform.timer = 10000; // Reset the starting platform timer to 10 seconds
     startingPlatform.width = 0; // Reset the starting platform width
     candlesticks.length = 0;
     generateCandlesticks();
