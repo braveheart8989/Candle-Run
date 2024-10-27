@@ -17,17 +17,17 @@ const startPlatform = {
     x: 0,  // This will be set in setCanvasSize
     y: canvas.height / 2 + 100,
     width: 0,  // This will be set in setCanvasSize
-    height: 20,
+    height: 10, // Reduced from 20 to make it thinner
     color: 'blue',
-    visible: true  // New property to control visibility
+    visible: true,
+    cornerRadius: 5 // New property for rounded corners
 };
 
 // Player properties
 const player = {
-    x: canvas.width / 2 - 15,
-    y: startPlatform.y - 30, // Update this line
-    width: 20,  // Smaller player for mobile
-    height: 20,
+    x: canvas.width / 2,
+    y: startPlatform.y - 15, // Adjust this value based on the new radius
+    radius: 10, // New property for circle radius
     jumpForce: 12,
     velocityY: 0,
     isJumping: false,
@@ -218,7 +218,8 @@ function drawCandlesticks() {
     // Draw the start platform only if it's visible
     if (startPlatform.visible) {
         ctx.fillStyle = startPlatform.color;
-        ctx.fillRect(startPlatform.x, startPlatform.y - camera.y, startPlatform.width, startPlatform.height);
+        roundedRect(ctx, startPlatform.x, startPlatform.y - camera.y, startPlatform.width, startPlatform.height, startPlatform.cornerRadius);
+        ctx.fill();
     }
 
     // Draw candlesticks
@@ -300,12 +301,12 @@ function updatePlayer() {
 
     // Check collision with start platform only if it's visible
     if (startPlatform.visible &&
-        player.x + player.width > startPlatform.x &&
-        player.x < startPlatform.x + startPlatform.width &&
-        player.y + player.height > startPlatform.y &&
-        player.y + player.height < startPlatform.y + startPlatform.height
+        player.x + player.radius > startPlatform.x &&
+        player.x - player.radius < startPlatform.x + startPlatform.width &&
+        player.y + player.radius > startPlatform.y &&
+        player.y + player.radius < startPlatform.y + startPlatform.height
     ) {
-        player.y = startPlatform.y - player.height;
+        player.y = startPlatform.y - player.radius;
         player.velocityY = 0;
         player.isJumping = false;
         player.jumpCount = 0;
@@ -319,17 +320,16 @@ function updatePlayer() {
         lowestCandleY = Math.max(lowestCandleY, candleBottom);
 
         if (
-            player.x + player.width > candle.x &&
-            player.x < candle.x + candlestickWidth &&
-            player.y + player.height > candleTop &&
-            player.y + player.height < candleTop + 10
+            player.x + player.radius > candle.x &&
+            player.x - player.radius < candle.x + candlestickWidth &&
+            player.y + player.radius > candleTop &&
+            player.y + player.radius < candleTop + 10
         ) {
             if (!onPlatform && player.velocityY > 0) {
-                // Increase rewards by 4x
                 const mulEarned = (Math.random() * (MAX_MUL_PER_JUMP - MIN_MUL_PER_JUMP) + MIN_MUL_PER_JUMP) * 4;
                 totalMULEarned += parseFloat(mulEarned.toFixed(6));
             }
-            player.y = candleTop - player.height;
+            player.y = candleTop - player.radius;
             player.velocityY = 0;
             player.isJumping = false;
             player.jumpCount = 0;
@@ -337,10 +337,10 @@ function updatePlayer() {
         }
     });
 
-    player.x = canvas.width / 2 - player.width / 2;
+    player.x = canvas.width / 2;
 
     // Check if player has fallen below the lowest candle
-    if (player.y > lowestCandleY + 200) {
+    if (player.y - player.radius > lowestCandleY + 200) {
         if (!gameOver) {
             gameOver = true;
             showGameOver(false);
@@ -366,7 +366,7 @@ function jump() {
         }
 
         // If this is the first jump and the player is on the start platform, make it disappear
-        if (startPlatform.visible && player.y === startPlatform.y - player.height) {
+        if (startPlatform.visible && player.y === startPlatform.y - player.radius) {
             startPlatform.visible = false;
         }
     }
@@ -418,7 +418,9 @@ function gameLoop() {
     // Draw game elements
     drawCandlesticks();
     ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fill();
     
     // Restore canvas state
     ctx.restore();
@@ -494,16 +496,16 @@ function setCanvasSize() {
     canvas.height = gameContainer.clientHeight;
     
     // Adjust player position
-    player.x = canvas.width / 2 - player.width / 2;
+    player.x = canvas.width / 2;
     player.y = canvas.height / 2;
     
     // Set start platform size and position
-    startPlatform.width = player.width * 7;  // 3 times wider on each side, plus player width
+    startPlatform.width = player.radius * 10;  // Adjust based on the new player size
     startPlatform.x = canvas.width / 2 - startPlatform.width / 2;  // Center the platform
     startPlatform.y = canvas.height / 2 + 100;
     
     // Set player's vertical position relative to the platform
-    player.y = startPlatform.y - player.height;
+    player.y = startPlatform.y - player.radius;
 
     // Adjust camera position
     camera.height = canvas.height;
@@ -533,15 +535,17 @@ function showGameOver(victory = false) {
 }
 
 // Add this helper function to draw rounded rectangles
-function roundRect(ctx, x, y, width, height, radius) {
-    if (width < 2 * radius) radius = width / 2;
-    if (height < 2 * radius) radius = height / 2;
+function roundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + width, y, x + width, y + height, radius);
-    ctx.arcTo(x + width, y + height, x, y + height, radius);
-    ctx.arcTo(x, y + height, x, y, radius);
-    ctx.arcTo(x, y, x + width, y, radius);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
 }
 
