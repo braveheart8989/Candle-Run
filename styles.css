@@ -60,7 +60,7 @@ body, html {
     align-items: center;
     padding: 0 15px;
     font-size: 12px;
-    z-index: 10;
+    z-index: 20;
 }
 
 .ui-item {
@@ -210,4 +210,126 @@ button {
     h2 { font-size: 20px; }
     .game-description { font-size: 12px; }
     button { font-size: 12px; padding: 6px 10px; }
+}
+
+/* Add these styles for Ted's image */
+.ted-image {
+    margin-bottom: 20px;
+    transform: scale(1.5);
+}
+
+/* Modify the startScreen styles to accommodate Ted's image */
+#startScreen {
+    position: absolute;
+    top: 38px; /* Start below header */
+    left: 0;
+    width: 100%;
+    height: calc(100% - 38px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(19, 23, 34, 0.95);
+    z-index: 15; /* Lower than gameUI */
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Add animation for Ted */
+@keyframes float {
+    0% { transform: scale(1.5) translateY(0px); }
+    50% { transform: scale(1.5) translateY(-10px); }
+    100% { transform: scale(1.5) translateY(0px); }
+}
+
+.ted-image {
+    margin-bottom: 20px;
+    animation: float 3s ease-in-out infinite;
+}
+
+/* Remove progress bar styles from gameUI section and add new styles */
+#levelProgress {
+    position: absolute;
+    top: 80px; /* Position below the header */
+    left: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    z-index: 10;
+    background-color: rgba(19, 23, 34, 0.8);
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #2a2e39;
+}
+
+.progress-label {
+    color: #787b86;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.progress-bar-container {
+    width: 150px;
+    height: 4px;
+    background-color: #2a2e39;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#progress-bar {
+    height: 100%;
+    background-color: #2962ff;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+/* Update media queries */
+@media (max-width: 767px) {
+    #levelProgress {
+        top: 60px;
+    }
+    
+    .progress-bar-container {
+        width: 120px;
+    }
+}
+
+/* Remove progress bar related styles from other media queries */
+
+/* Add styles for the claim rewards button */
+.claim-button {
+    background-color: #2962ff;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.claim-button.disabled {
+    background-color: #2a2e39;
+    color: #787b86;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.claim-button:not(.disabled):hover {
+    background-color: #1E4BCA;
+}
+
+/* Update gameUI styles to accommodate the button */
+#gameUI {
+    justify-content: space-between;
+    padding: 0 15px;
+}
+
+@media (max-width: 767px) {
+    .claim-button {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
 }
