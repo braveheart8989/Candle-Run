@@ -77,6 +77,21 @@ const groupGapMultiplier = 0.3; // How close together the candles in a group are
 // Add this new variable near the top of the file with other game properties
 let jumpedFromStartPlatform = false;
 
+// Add these constants at the top of the file
+const MUL_TOTAL_SUPPLY = 100000000;
+const MUL_CURRENT_PRICE = 0.01634;
+const MAX_USD_REWARD_PER_LEVEL = 5;
+
+// Calculate the maximum $MUL reward per level
+const MAX_MUL_REWARD_PER_LEVEL = MAX_USD_REWARD_PER_LEVEL / MUL_CURRENT_PRICE;
+
+// Add this variable to track the total $MUL earned
+let totalMULEarned = 0;
+
+// Modify these constants at the top of the file
+const MIN_MUL_PER_JUMP = 0.001; // Minimum $MUL awarded per jump
+const MAX_MUL_PER_JUMP = 0.005; // Maximum $MUL awarded per jump
+
 function getCandlestickGap() {
     const progress = Math.min(score / levelLength, 1);
     const maxGap = candlestickGap + (200 - candlestickGap) * progress;
@@ -271,7 +286,9 @@ function updatePlayer() {
             player.y + player.height < candleTop + 10
         ) {
             if (!onPlatform && player.velocityY > 0) {
-                platformsJumped++;
+                // Award a larger amount of $MUL for each platform jumped
+                const mulEarned = (Math.random() * (MAX_MUL_PER_JUMP - MIN_MUL_PER_JUMP) + MIN_MUL_PER_JUMP).toFixed(6);
+                totalMULEarned += parseFloat(mulEarned);
             }
             player.y = candleTop - player.height;
             player.velocityY = 0;
@@ -384,7 +401,7 @@ function updateScoreAndProgress() {
     const progressText = document.getElementById('progress-text');
 
     if (scoreElement) {
-        scoreElement.textContent = platformsJumped;
+        scoreElement.textContent = totalMULEarned.toFixed(6);
     }
 
     const progressPercentage = Math.min(score / levelLength * 100, 100);
@@ -398,7 +415,7 @@ function updateScoreAndProgress() {
 
 // Add event listeners for controls
 document.addEventListener('keydown', (event) => {
-    if (event.code === 'Space') {
+    if (event.code === 'Space' || event.type === 'touchstart') {
         if (gameOver) {
             location.reload(); // Restart the game
         } else {
@@ -407,22 +424,15 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-canvas.addEventListener('touchstart', (event) => {
+// Add this new touch event listener for the entire document
+document.addEventListener('touchstart', (event) => {
     event.preventDefault();
+    if (gameOver) {
+        location.reload(); // Restart the game
+    } else {
+        jump();
+    }
 });
-
-// Add touch controls
-const jumpButton = document.getElementById('jumpButton');
-if (jumpButton) {
-    jumpButton.addEventListener('touchstart', (event) => {
-        event.preventDefault();
-        if (gameOver) {
-            location.reload(); // Restart the game
-        } else {
-            jump();
-        }
-    });
-}
 
 // Call setCanvasSize initially
 setCanvasSize();
@@ -472,7 +482,8 @@ function drawGameOver(victory = false) {
     }
 
     ctx.font = '24px Arial';
-    ctx.fillText(`Platforms Jumped: ${platformsJumped}`, canvas.width / 2, canvas.height / 2 + 20);
-    ctx.fillText('Press Space or Tap to Restart', canvas.width / 2, canvas.height / 2 + 60);
+    ctx.fillText(`$MUL Rewards: ${totalMULEarned.toFixed(6)}`, canvas.width / 2, canvas.height / 2 + 20);
+    const usdValue = (totalMULEarned * MUL_CURRENT_PRICE).toFixed(2);
+    ctx.fillText(`(Approx. $${usdValue} USD)`, canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 90);
 }
-
