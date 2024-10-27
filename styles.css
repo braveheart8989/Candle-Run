@@ -61,6 +61,7 @@ body, html {
     padding: 0 15px;
     font-size: 12px;
     z-index: 20;
+    gap: 10px; /* Add gap between elements */
 }
 
 .ui-item {
@@ -331,5 +332,103 @@ button {
     .claim-button {
         font-size: 11px;
         padding: 4px 8px;
+    }
+}
+
+/* Add these styles */
+.header-button {
+    background-color: #2962ff; /* Changed from #4CAF50 to match other buttons */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.header-button:hover {
+    background-color: #1E4BCA; /* Changed from #45a049 to match other buttons */
+}
+
+.header-button i {
+    font-size: 16px;
+}
+
+/* Update the gameUI styles */
+#gameUI {
+    justify-content: space-between;
+    padding: 0 15px;
+    gap: 10px; /* Add gap between elements */
+}
+
+/* Update header-button styles for better mobile support */
+.header-button {
+    background-color: #2962ff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+/* Add mobile-specific styles */
+@media (max-width: 767px) {
+    .header-button {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .header-button i {
+        font-size: 12px;
+    }
+}
+
+/* Add these styles */
+.button-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Update header-button styles to match claim-button */
+.header-button {
+    background-color: #2962ff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+/* Update mobile styles */
+@media (max-width: 767px) {
+    .button-group {
+        gap: 6px;
+    }
+    
+    .header-button {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .header-button i {
+        font-size: 12px;
     }
 }
