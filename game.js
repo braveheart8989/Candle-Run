@@ -1133,10 +1133,10 @@ document.getElementById('claimRewardsBtn').addEventListener('click', function() 
 
 // Add this function near the other UI-related functions
 function handleInviteFriends() {
-    // Create the share data
+    // Create the share data with new message
     const shareData = {
-        title: 'Play Ted Bounce!',
-        text: 'Join me in playing Ted Bounce - a fun crypto game where you can earn $MUL tokens!',
+        title: "Ted's Candle Run",
+        text: "You're invited to play Ted's Candle Run – the trading-inspired game where you earn $MUL rewards as you play! Get a 15% boost in rewards with this link.",
         url: window.location.href
     };
 
