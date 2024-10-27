@@ -4,10 +4,210 @@ body, html {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+    background-color: #131722;
+    color: #d1d4dc;
+}
+
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #131722;
+    background-image: 
+        linear-gradient(to right, rgba(42, 46, 57, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(42, 46, 57, 0.1) 1px, transparent 1px);
+    background-size: 80px 40px;
+    background-position: 0 38px, 0 38px;
 }
 
 #gameCanvas {
     display: block;
     width: 100%;
+    height: calc(100% - 38px);
+    position: absolute;
+    top: 38px;
+    left: 0;
+}
+
+#priceScale {
+    position: absolute;
+    top: 38px;
+    right: 0;
+    bottom: 0;
+    width: 48px;
+    background-color: #131722;
+    color: #787b86;
+    font-size: 11px;
+    padding: 5px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+    border-left: 1px solid #2a2e39;
+}
+
+#gameUI {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 38px;
+    background-color: #1e222d;
+    border-bottom: 1px solid #2a2e39;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 12px;
+    z-index: 10;
+}
+
+.ui-item {
+    display: flex;
+    align-items: center;
+}
+
+.ui-item .label::before {
+    content: attr(data-full-text);
+}
+
+.label {
+    color: #787b86;
+    margin-right: 5px;
+    font-weight: 400;
+}
+
+.value {
+    color: #d1d4dc;
+    font-weight: 500;
+}
+
+.progress-bar-container {
+    width: 100px;
+    height: 4px;
+    background-color: #2a2e39;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+#progress-bar {
     height: 100%;
+    background-color: #2962ff;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+#startScreen, #gameOverScreen {
+    position: absolute;
+    top: 38px;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 38px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(19, 23, 34, 0.95);
+    z-index: 20;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+h1 {
+    color: #d1d4dc;
+    margin-bottom: 10px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+h2 {
+    color: #d1d4dc;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.game-description {
+    color: #787b86;
+    margin: 20px auto 30px;
+    max-width: 80%;
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 30px;
+}
+
+button {
+    margin: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    min-width: 100px;
+}
+
+#startGameBtn, #playAgainBtn {
+    background-color: #2962ff;
+    color: #ffffff;
+}
+
+#startGameBtn:hover, #playAgainBtn:hover {
+    background-color: #1E4BCA;
+}
+
+#homeBtn {
+    background-color: #2a2e39;
+    color: #d1d4dc;
+}
+
+#homeBtn:hover {
+    background-color: #363a45;
+}
+
+/* Media query for mobile devices */
+@media (max-width: 767px) {
+    .ui-item .label[data-full-text="$MUL Rewards:"]::before {
+        content: "$MUL:";
+    }
+
+    .ui-item .label[data-full-text="Level Progress:"]::before {
+        content: "Progress:";
+    }
+
+    .progress-bar-container {
+        width: 60px;
+    }
+}
+
+/* Media query for desktop layout */
+@media (min-width: 768px) {
+    .ui-item .label::before {
+        content: attr(data-full-text);
+    }
+
+    #gameUI {
+        font-size: 13px;
+    }
+
+    .progress-bar-container {
+        width: 120px;
+    }
+}
+
+/* Add responsive font sizes */
+@media (max-height: 600px) {
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    .game-description { font-size: 12px; }
+    button { font-size: 12px; padding: 6px 10px; }
 }
