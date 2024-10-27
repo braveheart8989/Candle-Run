@@ -264,12 +264,12 @@ function drawCandlesticks() {
 function updateCamera() {
     const cameraTopY = camera.y;
     const cameraBottomY = camera.y + camera.height;
-    const playerTopY = player.y;
-    const playerBottomY = player.y + player.height;
+    const playerTopY = player.y - player.radius;
+    const playerBottomY = player.y + player.radius;
 
     // Increase sensitivity for both upward and downward tracking
-    const trackingThreshold = camera.height * 0.3; // Reduced from 0.4 to 0.3 for quicker response
-    const trackingSpeed = 0.2; // Increased from 0.1 to 0.2 for faster camera movement
+    const trackingThreshold = camera.height * 0.3;
+    const trackingSpeed = 0.2;
 
     if (playerTopY < cameraTopY + trackingThreshold) {
         // Faster upward camera movement
@@ -280,11 +280,6 @@ function updateCamera() {
         camera.y += (playerBottomY - (cameraBottomY - trackingThreshold)) * trackingSpeed;
     }
 
-    // Remove the vertical deadzone to allow for more precise tracking
-    // if (Math.abs(camera.y - player.y) < 5) {
-    //     camera.y = player.y;
-    // }
-
     // Ensure the camera doesn't go below the ground level
     camera.y = Math.max(0, camera.y);
 }
@@ -294,57 +289,79 @@ const coins = [];
 
 // Add this coin particle class
 class Coin {
-    constructor(x, y, value) {
+    constructor(x, y, value, candleX) {
         this.x = x;
         this.y = y;
+        this.initialY = y;
+        this.candleX = candleX;
         this.value = value;
-        this.size = 12; // Reduced from 15
-        this.velocityY = -0.8; // Reduced from -1
-        this.velocityX = (Math.random() - 0.5) * 0.4; // Reduced from 0.8
+        this.size = 16;
+        
+        // Explosion animation properties - stronger upward bias
+        const angle = (Math.random() * Math.PI/3) + Math.PI/3; // Angle between 60 and 120 degrees (more upward)
+        const speed = 4 + Math.random() * 3; // Increased upward speed
+        this.velocityY = -speed * Math.sin(angle); // Stronger upward velocity
+        this.velocityX = speed * Math.cos(angle) * (Math.random() > 0.5 ? 1 : -1); // Random left/right
+        this.gravity = 0.12; // Reduced gravity for longer air time
+        this.friction = 0.99; // Reduced friction for smoother motion
+        
         this.rotation = 0;
-        this.rotationSpeed = (Math.random() - 0.5) * 0.03; // Reduced from 0.05
-        this.opacity = 0.8; // Reduced from 0.9
-        this.scale = 0.7; // Reduced from 0.8
+        this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+        this.opacity = 1;
+        this.scale = 1;
         this.collected = false;
         this.targetX = 0;
         this.targetY = 0;
         this.time = 0;
-        this.waveAmplitude = (Math.random() * 0.3 + 0.2) * 0.8; // Reduced wave motion
-        this.waveFrequency = (Math.random() * 0.3 + 0.2) * 0.02; // Reduced frequency
+        
+        // Track absolute position instead of relative to candle
+        this.absoluteX = x;
+        this.absoluteY = y;
     }
 
-    update() {
-        this.time += 0.8; // Slowed down time progression
+    update(timeScale = 1) {
+        this.time += 0.5 * timeScale;
         
         if (this.collected) {
             const dx = this.targetX - this.x;
             const dy = this.targetY - this.y;
-            this.x += dx * 0.03; // Reduced from 0.05
-            this.y += dy * 0.03; // Reduced from 0.05
-            this.scale -= 0.01; // Reduced from 0.02
-            this.opacity -= 0.01; // Reduced from 0.02
+            this.x += dx * 0.02 * timeScale;
+            this.y += dy * 0.02 * timeScale;
+            this.scale -= 0.005 * timeScale;
+            this.opacity -= 0.008 * timeScale;
             return this.opacity > 0;
         } else {
-            this.velocityY += 0.01; // Reduced from 0.02
-            this.y += this.velocityY;
+            // Apply physics with time scaling
+            this.velocityY += this.gravity * timeScale;
+            this.velocityX *= Math.pow(this.friction, timeScale);
+            this.velocityY *= Math.pow(this.friction, timeScale);
             
-            this.x += this.velocityX + Math.sin(this.time * this.waveFrequency) * this.waveAmplitude;
-            this.rotation += this.rotationSpeed;
+            // Update absolute position with time scaling
+            this.absoluteX += this.velocityX * timeScale;
+            this.absoluteY += this.velocityY * timeScale;
             
-            if (this.velocityY > 0.3) { // Reduced from 0.5
+            // Update display position
+            this.x = this.absoluteX - gameSpeed * timeScale;
+            this.y = this.absoluteY;
+            
+            // Rotate with time scaling
+            this.rotation += this.rotationSpeed * timeScale;
+            
+            if (this.velocityY > 1 && this.time > 90) {
                 this.collected = true;
                 const scoreElement = document.getElementById('score');
                 const scoreRect = scoreElement.getBoundingClientRect();
                 this.targetX = scoreRect.left + scoreRect.width / 2;
                 this.targetY = scoreRect.top + scoreRect.height / 2;
             }
+            
             return true;
         }
     }
 
     draw(ctx) {
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.x, this.y - camera.y); // Adjust for camera position
         ctx.rotate(this.rotation);
         ctx.scale(this.scale, this.scale);
         ctx.globalAlpha = this.opacity;
@@ -365,8 +382,8 @@ class Coin {
         ctx.stroke();
 
         // Draw M symbol for $MUL
-        ctx.fillStyle = '#B25900'; // Darker color for better contrast
-        ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = '#B25900';
+        ctx.font = 'bold 14px Arial'; // Increased from 12px
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('M', 0, 0);
@@ -382,13 +399,24 @@ const COIN_SPAWN_COOLDOWN = 500; // Minimum time (ms) between coin spawns
 function spawnCoins(x, y, value) {
     const currentTime = Date.now();
     if (currentTime - lastCoinTime < COIN_SPAWN_COOLDOWN) {
-        return; // Skip spawning if cooldown hasn't elapsed
+        return;
     }
     
     lastCoinTime = currentTime;
-    setTimeout(() => {
-        coins.push(new Coin(x, y, value));
-    }, Math.random() * 50); // Reduced delay from 100 to 50
+    
+    // Randomly choose to spawn 1 or 2 coins
+    const numCoins = Math.random() < 0.5 ? 1 : 2;
+    
+    for (let i = 0; i < numCoins; i++) {
+        const coinX = x + (Math.random() - 0.5) * 5;
+        const coinY = y + (Math.random() - 0.5) * 5;
+        coins.push(new Coin(
+            coinX,
+            coinY,
+            value / numCoins, // Split value between coins
+            x
+        ));
+    }
 }
 
 // Add this function to create a floating score text
@@ -407,9 +435,9 @@ function createFloatingText(x, y, value) {
 }
 
 // Modify the updatePlayer function to spawn coins on landing
-function updatePlayer() {
-    player.velocityY += 0.4;
-    player.y += player.velocityY;
+function updatePlayer(timeScale = 1) {
+    player.velocityY += 0.4 * timeScale;
+    player.y += player.velocityY * timeScale;
 
     const maxFallSpeed = 6;
     if (player.velocityY > maxFallSpeed) {
@@ -462,7 +490,7 @@ function updatePlayer() {
 
     // Update and remove finished coin animations
     for (let i = coins.length - 1; i >= 0; i--) {
-        if (!coins[i].update()) {
+        if (!coins[i].update(timeScale)) {
             coins.splice(i, 1);
         }
     }
@@ -502,38 +530,59 @@ function jump() {
     }
 }
 
-// Update the game loop
-function gameLoop() {
-    if (!gameStarted) return;
+// Add these constants near the top of the file
+const FRAME_RATE = 60;
+const FRAME_DURATION = 1000 / FRAME_RATE;
+let lastFrameTime = 0;
 
-    // Clear the canvas
+// Update the gameLoop function with higher speed values
+function gameLoop(timestamp) {
+    if (!timestamp) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    // Calculate delta time
+    const deltaTime = timestamp - lastFrameTime;
+    const timeScale = Math.min(deltaTime / FRAME_DURATION, 2.0);
+    
+    lastFrameTime = timestamp;
+
+    if (!gameStarted) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Update game state
-    updatePlayer();
-    
     if (!gameOver) {
-        // Generate candlesticks if needed
+        // Increased base speeds and progression
+        gameSpeed = isMobile() ? 
+            2.5 + (score / levelLength) * 1.5 : // Increased from 1.5 to 2.5
+            3.0 + (score / levelLength) * 3;    // Increased from 2.0 to 3.0
+            
+        // Move candlesticks with timeScale
+        for (const candle of candlesticks) {
+            candle.x -= gameSpeed * timeScale;
+        }
+    }
+    
+    // Update player and camera
+    updatePlayer(timeScale);
+    updateCamera();
+    
+    // Generate candlesticks if needed
+    if (!gameOver) {
         if (candlesticks.length === 0) {
             generateCandlesticks();
         }
         
-        // Move candlesticks
-        for (const candle of candlesticks) {
-            candle.x -= gameSpeed;
-        }
-        
-        // Remove off-screen candlesticks and generate new ones
         if (candlesticks[0].x + candlestickWidth < 0) {
             candlesticks.shift();
-            score++; // Keep this for level progression
+            score++;
             generateCandlesticks();
         }
         
-        // Increase game speed
-        gameSpeed = isMobile() ? 1 + (score / levelLength) : 1.5 + (score / levelLength) * 2;
-
-        // Check for level completion
         if (score >= levelLength) {
             gameOver = true;
             showGameOver(true);
@@ -541,11 +590,10 @@ function gameLoop() {
         }
     }
     
-    // Apply camera transformation
+    // Draw game elements
     ctx.save();
     ctx.translate(0, -camera.y);
     
-    // Draw game elements
     drawCandlesticks();
     drawShrimp(player.x, player.y, player.radius);
     
@@ -554,16 +602,13 @@ function gameLoop() {
         coin.draw(ctx);
     }
     
-    // Restore canvas state
     ctx.restore();
     
-    // Update score and progress bar (draw these after restoring canvas state)
+    // Update UI
     updateScoreAndProgress();
-    
-    // Update price scale
     updatePriceScale();
 
-    // Request next frame if the game is not over
+    // Continue game loop
     if (!gameOver) {
         requestAnimationFrame(gameLoop);
     }
@@ -816,6 +861,7 @@ function startGame() {
     document.getElementById('startScreen').style.display = 'none';
     document.getElementById('gameOverScreen').style.display = 'none';
     resetGame();
+    lastFrameTime = 0; // Reset the frame time
     requestAnimationFrame(gameLoop);
 }
 
@@ -1084,3 +1130,32 @@ document.getElementById('claimRewardsBtn').addEventListener('click', function() 
     totalMULEarned = 0;
     updateScoreAndProgress();
 });
+
+// Add this function near the other UI-related functions
+function handleInviteFriends() {
+    // Create the share data
+    const shareData = {
+        title: 'Play Ted Bounce!',
+        text: 'Join me in playing Ted Bounce - a fun crypto game where you can earn $MUL tokens!',
+        url: window.location.href
+    };
+
+    // Check if the Web Share API is available
+    if (navigator.share) {
+        navigator.share(shareData)
+            .catch((error) => console.log('Error sharing:', error));
+    } else {
+        // Fallback for browsers that don't support Web Share API
+        const tempInput = document.createElement('input');
+        tempInput.value = window.location.href;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        alert('Game link copied to clipboard! Share it with your friends!');
+    }
+}
+
+// Add this event listener after other event listeners
+document.getElementById('inviteFriendsBtn').addEventListener('click', handleInviteFriends);
+
