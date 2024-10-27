@@ -17,23 +17,25 @@ const startPlatform = {
     x: 0,  // This will be set in setCanvasSize
     y: canvas.height / 2 + 100,
     width: 0,  // This will be set in setCanvasSize
-    height: 10, // Reduced from 20 to make it thinner
+    height: 10, // Slightly reduced from 12
     color: 'blue',
     visible: true,
-    cornerRadius: 5 // New property for rounded corners
+    cornerRadius: 5 // Slightly reduced from 6
 };
 
 // Player properties
 const player = {
     x: canvas.width / 2,
-    y: startPlatform.y - 15, // Adjust this value based on the new radius
-    radius: 10, // New property for circle radius
+    y: startPlatform.y - 20, // Adjusted for smaller size
+    radius: 15, // Reduced from 20
     jumpForce: 12,
     velocityY: 0,
     isJumping: false,
     jumpCount: 0,
     maxJumps: 3,
-    color: 'blue'
+    color: '#FF6B6B',
+    rotation: 0,
+    name: 'Ted' // Added name property
 };
 
 // Candlestick properties
@@ -287,6 +289,124 @@ function updateCamera() {
     camera.y = Math.max(0, camera.y);
 }
 
+// Add this near the top with other game properties
+const coins = [];
+
+// Add this coin particle class
+class Coin {
+    constructor(x, y, value) {
+        this.x = x;
+        this.y = y;
+        this.value = value;
+        this.size = 12; // Reduced from 15
+        this.velocityY = -0.8; // Reduced from -1
+        this.velocityX = (Math.random() - 0.5) * 0.4; // Reduced from 0.8
+        this.rotation = 0;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.03; // Reduced from 0.05
+        this.opacity = 0.8; // Reduced from 0.9
+        this.scale = 0.7; // Reduced from 0.8
+        this.collected = false;
+        this.targetX = 0;
+        this.targetY = 0;
+        this.time = 0;
+        this.waveAmplitude = (Math.random() * 0.3 + 0.2) * 0.8; // Reduced wave motion
+        this.waveFrequency = (Math.random() * 0.3 + 0.2) * 0.02; // Reduced frequency
+    }
+
+    update() {
+        this.time += 0.8; // Slowed down time progression
+        
+        if (this.collected) {
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            this.x += dx * 0.03; // Reduced from 0.05
+            this.y += dy * 0.03; // Reduced from 0.05
+            this.scale -= 0.01; // Reduced from 0.02
+            this.opacity -= 0.01; // Reduced from 0.02
+            return this.opacity > 0;
+        } else {
+            this.velocityY += 0.01; // Reduced from 0.02
+            this.y += this.velocityY;
+            
+            this.x += this.velocityX + Math.sin(this.time * this.waveFrequency) * this.waveAmplitude;
+            this.rotation += this.rotationSpeed;
+            
+            if (this.velocityY > 0.3) { // Reduced from 0.5
+                this.collected = true;
+                const scoreElement = document.getElementById('score');
+                const scoreRect = scoreElement.getBoundingClientRect();
+                this.targetX = scoreRect.left + scoreRect.width / 2;
+                this.targetY = scoreRect.top + scoreRect.height / 2;
+            }
+            return true;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.scale(this.scale, this.scale);
+        ctx.globalAlpha = this.opacity;
+
+        // Draw coin with subtle gradient
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+        
+        // Create gradient
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size / 2);
+        gradient.addColorStop(0, '#FFD700');
+        gradient.addColorStop(1, '#FFA500');
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.strokeStyle = '#FFA500';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Draw M symbol for $MUL
+        ctx.fillStyle = '#B25900'; // Darker color for better contrast
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('M', 0, 0);
+
+        ctx.restore();
+    }
+}
+
+// Add this function to spawn coins
+let lastCoinTime = 0;
+const COIN_SPAWN_COOLDOWN = 500; // Minimum time (ms) between coin spawns
+
+function spawnCoins(x, y, value) {
+    const currentTime = Date.now();
+    if (currentTime - lastCoinTime < COIN_SPAWN_COOLDOWN) {
+        return; // Skip spawning if cooldown hasn't elapsed
+    }
+    
+    lastCoinTime = currentTime;
+    setTimeout(() => {
+        coins.push(new Coin(x, y, value));
+    }, Math.random() * 50); // Reduced delay from 100 to 50
+}
+
+// Add this function to create a floating score text
+function createFloatingText(x, y, value) {
+    const text = {
+        x: x,
+        y: y,
+        value: `+${value.toFixed(6)}`,
+        opacity: 1,
+        scale: 1
+    };
+    
+    // Add to a new array for floating texts if you don't have one
+    if (!window.floatingTexts) window.floatingTexts = [];
+    window.floatingTexts.push(text);
+}
+
+// Modify the updatePlayer function to spawn coins on landing
 function updatePlayer() {
     player.velocityY += 0.4;
     player.y += player.velocityY;
@@ -328,6 +448,9 @@ function updatePlayer() {
             if (!onPlatform && player.velocityY > 0) {
                 const mulEarned = (Math.random() * (MAX_MUL_PER_JUMP - MIN_MUL_PER_JUMP) + MIN_MUL_PER_JUMP) * 4;
                 totalMULEarned += parseFloat(mulEarned.toFixed(6));
+                // Spawn coins when earning rewards
+                spawnCoins(player.x, player.y, mulEarned);
+                createFloatingText(player.x, player.y - player.radius, mulEarned);
             }
             player.y = candleTop - player.radius;
             player.velocityY = 0;
@@ -336,6 +459,13 @@ function updatePlayer() {
             onPlatform = true;
         }
     });
+
+    // Update and remove finished coin animations
+    for (let i = coins.length - 1; i >= 0; i--) {
+        if (!coins[i].update()) {
+            coins.splice(i, 1);
+        }
+    }
 
     player.x = canvas.width / 2;
 
@@ -417,10 +547,12 @@ function gameLoop() {
     
     // Draw game elements
     drawCandlesticks();
-    ctx.fillStyle = player.color;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.fill();
+    drawShrimp(player.x, player.y, player.radius);
+    
+    // Draw coins
+    for (const coin of coins) {
+        coin.draw(ctx);
+    }
     
     // Restore canvas state
     ctx.restore();
@@ -450,6 +582,9 @@ function updateScoreAndProgress() {
     if (progressBar) {
         progressBar.style.width = `${progressPercentage}%`;
     }
+
+    // Update claim button state
+    updateClaimButton();
 }
 
 // Add event listeners for controls
@@ -492,22 +627,19 @@ function isMobile() {
 // Modify the canvas size setting
 function setCanvasSize() {
     const gameContainer = document.getElementById('gameContainer');
-    canvas.width = gameContainer.clientWidth - 60; // Subtract the width of the price scale
+    canvas.width = gameContainer.clientWidth - 60;
     canvas.height = gameContainer.clientHeight;
     
-    // Adjust player position
     player.x = canvas.width / 2;
     player.y = canvas.height / 2;
     
-    // Set start platform size and position
-    startPlatform.width = player.radius * 10;  // Adjust based on the new player size
-    startPlatform.x = canvas.width / 2 - startPlatform.width / 2;  // Center the platform
+    // Adjust platform width for smaller Ted
+    startPlatform.width = player.radius * 10;  // Adjusted multiplier for smaller size
+    startPlatform.x = canvas.width / 2 - startPlatform.width / 2;
     startPlatform.y = canvas.height / 2 + 100;
     
-    // Set player's vertical position relative to the platform
     player.y = startPlatform.y - player.radius;
 
-    // Adjust camera position
     camera.height = canvas.height;
 }
 
@@ -526,7 +658,7 @@ function showGameOver(victory = false) {
     const rewardsText = document.getElementById('rewardsText');
     const usdValueText = document.getElementById('usdValueText');
 
-    gameOverTitle.textContent = victory ? 'Level Complete!' : 'Game Over';
+    gameOverTitle.textContent = victory ? "Ted's Level Complete!" : 'Game Over';
     rewardsText.textContent = `$MUL Rewards: ${totalMULEarned.toFixed(6)}`;
     const usdValue = (totalMULEarned * MUL_CURRENT_PRICE).toFixed(2);
     usdValueText.textContent = `(Approx. $${usdValue} USD)`;
@@ -658,7 +790,7 @@ function handleGameOverClick(event) {
     canvas.removeEventListener('mousemove', handleGameOverMouseMove);
 }
 
-// Modify the resetGame function
+// Modify the resetGame function to clear coins
 function resetGame() {
     score = 0;
     totalMULEarned = 0;
@@ -672,14 +804,16 @@ function resetGame() {
     camera.y = 0;
     setCanvasSize();
     generateCandlesticks();
+    coins.length = 0; // Clear any existing coins
+    if (window.floatingTexts) window.floatingTexts.length = 0;
+    updateClaimButton();
 }
 
-// Modify the startGame function to ensure it sets up the game properly
+// Modify the startGame function to not hide/show gameUI
 function startGame() {
     gameStarted = true;
     gameOver = false;
     document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('gameUI').style.display = 'flex';
     document.getElementById('gameOverScreen').style.display = 'none';
     resetGame();
     requestAnimationFrame(gameLoop);
@@ -691,10 +825,262 @@ document.getElementById('playAgainBtn').addEventListener('click', startGame);
 document.getElementById('homeBtn').addEventListener('click', () => {
     document.getElementById('gameOverScreen').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
-    document.getElementById('gameUI').style.display = 'none';
     resetGame();
 });
 
 // Instead, add this line to set up the initial canvas size
 setCanvasSize();
 
+// Update the drawShrimp function
+function drawShrimp(x, y, radius) {
+    ctx.save();
+    ctx.translate(x, y);
+    
+    // Rotate based on velocity
+    const targetRotation = player.velocityY * 0.1;
+    player.rotation += (targetRotation - player.rotation) * 0.1;
+    ctx.rotate(player.rotation);
+
+    // Main body (curved)
+    ctx.beginPath();
+    ctx.moveTo(-radius, 0);
+    ctx.bezierCurveTo(
+        -radius, -radius * 0.5,
+        radius, -radius * 0.5,
+        radius, 0
+    );
+    ctx.bezierCurveTo(
+        radius, radius * 0.5,
+        -radius, radius * 0.5,
+        -radius, 0
+    );
+    ctx.fillStyle = player.color;
+    ctx.strokeStyle = '#FF4040';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fill();
+
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(-radius, 0);
+    ctx.bezierCurveTo(
+        -radius * 1.5, -radius * 0.3,
+        -radius * 1.8, 0,
+        -radius * 1.5, radius * 0.3
+    );
+    ctx.stroke();
+
+    // Legs (small curved lines)
+    for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        const xOffset = -radius * 0.5 + (i * radius * 0.5);
+        ctx.moveTo(xOffset, radius * 0.2);
+        ctx.bezierCurveTo(
+            xOffset, radius * 0.6,
+            xOffset + radius * 0.2, radius * 0.6,
+            xOffset + radius * 0.2, radius * 0.8
+        );
+        ctx.stroke();
+    }
+
+    // Draw big human-like eyes
+    const eyeSize = radius * 0.4;
+    const eyeX = radius * 0.5;
+    const eyeY = -radius * 0.2;
+
+    // White of the eyes
+    ctx.beginPath();
+    ctx.fillStyle = 'white';
+    ctx.arc(eyeX, eyeY, eyeSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FF4040';
+    ctx.stroke();
+
+    // Pupils
+    ctx.beginPath();
+    ctx.fillStyle = 'black';
+    const pupilSize = eyeSize * 0.5;
+    ctx.arc(eyeX + pupilSize * 0.2, eyeY, pupilSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye highlights
+    ctx.beginPath();
+    ctx.fillStyle = 'white';
+    const highlightSize = eyeSize * 0.2;
+    ctx.arc(eyeX - pupilSize * 0.2, eyeY - pupilSize * 0.2, highlightSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add eyelashes (3 small lines above the eye)
+    ctx.beginPath();
+    ctx.strokeStyle = '#FF4040';
+    ctx.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i++) {
+        const lashX = eyeX + (i * eyeSize * 0.4);
+        ctx.moveTo(lashX, eyeY - eyeSize);
+        ctx.lineTo(lashX, eyeY - eyeSize * 1.4);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// Add this to the gameLoop function after drawing coins
+// Update and draw floating texts
+if (window.floatingTexts) {
+    for (let i = window.floatingTexts.length - 1; i >= 0; i--) {
+        const text = window.floatingTexts[i];
+        text.y -= 1;
+        text.opacity -= 0.02;
+        
+        if (text.opacity <= 0) {
+            window.floatingTexts.splice(i, 1);
+            continue;
+        }
+        
+        ctx.save();
+        ctx.globalAlpha = text.opacity;
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(text.value, text.x, text.y);
+        ctx.restore();
+    }
+}
+
+// Add this after setCanvasSize()
+function drawStartScreenTed() {
+    const tedCanvas = document.getElementById('tedCanvas');
+    const tedCtx = tedCanvas.getContext('2d');
+    
+    // Clear the canvas
+    tedCtx.clearRect(0, 0, tedCanvas.width, tedCanvas.height);
+    
+    // Draw Ted in the center of the canvas
+    const tedRadius = 40;
+    const centerX = tedCanvas.width / 2;
+    const centerY = tedCanvas.height / 2;
+    
+    // Save context state
+    tedCtx.save();
+    tedCtx.translate(centerX, centerY);
+    
+    // Draw Ted using the existing drawShrimp function logic
+    // Main body (curved)
+    tedCtx.beginPath();
+    tedCtx.moveTo(-tedRadius, 0);
+    tedCtx.bezierCurveTo(
+        -tedRadius, -tedRadius * 0.5,
+        tedRadius, -tedRadius * 0.5,
+        tedRadius, 0
+    );
+    tedCtx.bezierCurveTo(
+        tedRadius, tedRadius * 0.5,
+        -tedRadius, tedRadius * 0.5,
+        -tedRadius, 0
+    );
+    tedCtx.fillStyle = player.color;
+    tedCtx.strokeStyle = '#FF4040';
+    tedCtx.lineWidth = 2;
+    tedCtx.stroke();
+    tedCtx.fill();
+
+    // Tail
+    tedCtx.beginPath();
+    tedCtx.moveTo(-tedRadius, 0);
+    tedCtx.bezierCurveTo(
+        -tedRadius * 1.5, -tedRadius * 0.3,
+        -tedRadius * 1.8, 0,
+        -tedRadius * 1.5, tedRadius * 0.3
+    );
+    tedCtx.stroke();
+
+    // Legs
+    for (let i = 0; i < 3; i++) {
+        tedCtx.beginPath();
+        const xOffset = -tedRadius * 0.5 + (i * tedRadius * 0.5);
+        tedCtx.moveTo(xOffset, tedRadius * 0.2);
+        tedCtx.bezierCurveTo(
+            xOffset, tedRadius * 0.6,
+            xOffset + tedRadius * 0.2, tedRadius * 0.6,
+            xOffset + tedRadius * 0.2, tedRadius * 0.8
+        );
+        tedCtx.stroke();
+    }
+
+    // Eyes
+    const eyeSize = tedRadius * 0.4;
+    const eyeX = tedRadius * 0.5;
+    const eyeY = -tedRadius * 0.2;
+
+    // White of the eyes
+    tedCtx.beginPath();
+    tedCtx.fillStyle = 'white';
+    tedCtx.arc(eyeX, eyeY, eyeSize, 0, Math.PI * 2);
+    tedCtx.fill();
+    tedCtx.strokeStyle = '#FF4040';
+    tedCtx.stroke();
+
+    // Pupils
+    tedCtx.beginPath();
+    tedCtx.fillStyle = 'black';
+    const pupilSize = eyeSize * 0.5;
+    tedCtx.arc(eyeX + pupilSize * 0.2, eyeY, pupilSize, 0, Math.PI * 2);
+    tedCtx.fill();
+
+    // Eye highlights
+    tedCtx.beginPath();
+    tedCtx.fillStyle = 'white';
+    const highlightSize = eyeSize * 0.2;
+    tedCtx.arc(eyeX - pupilSize * 0.2, eyeY - pupilSize * 0.2, highlightSize, 0, Math.PI * 2);
+    tedCtx.fill();
+
+    // Eyelashes
+    tedCtx.beginPath();
+    tedCtx.strokeStyle = '#FF4040';
+    tedCtx.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i++) {
+        const lashX = eyeX + (i * eyeSize * 0.4);
+        tedCtx.moveTo(lashX, eyeY - eyeSize);
+        tedCtx.lineTo(lashX, eyeY - eyeSize * 1.4);
+    }
+    tedCtx.stroke();
+
+    // Add a smile
+    tedCtx.beginPath();
+    tedCtx.strokeStyle = '#FF4040';
+    tedCtx.lineWidth = 2;
+    tedCtx.arc(tedRadius * 0.3, tedRadius * 0.1, tedRadius * 0.3, 0, Math.PI);
+    tedCtx.stroke();
+
+    tedCtx.restore();
+}
+
+// Call drawStartScreenTed when the page loads
+window.addEventListener('load', drawStartScreenTed);
+
+// Add near the top with other game properties
+let canClaimRewards = false;
+
+// Add this function to update the claim button state
+function updateClaimButton() {
+    const claimButton = document.getElementById('claimRewardsBtn');
+    if (totalMULEarned > 0) {
+        claimButton.classList.remove('disabled');
+        canClaimRewards = true;
+    } else {
+        claimButton.classList.add('disabled');
+        canClaimRewards = false;
+    }
+}
+
+// Add event listener for claim button
+document.getElementById('claimRewardsBtn').addEventListener('click', function() {
+    if (!canClaimRewards) return;
+    
+    // Here you would typically integrate with your rewards claiming system
+    alert(`Claimed ${totalMULEarned.toFixed(6)} $MUL!`);
+    
+    // Reset rewards after claiming
+    totalMULEarned = 0;
+    updateScoreAndProgress();
+});
